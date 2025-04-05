@@ -24,7 +24,7 @@ exports.execMaltiverse = async (params) => {
 
     if (results.length > 0) {
       results = results.map((result) => {
-        const listasNegras = result.blacklist ? result.blacklist.map((item) => item.name) : []
+        const listasNegras = result.blacklist ? result.blacklist.map((item) => item.source) : []
         const uniqueListasNegras = [...new Set(listasNegras)].join(',')
         return {
           IP: result.ip_addr,
