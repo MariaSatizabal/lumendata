@@ -6,7 +6,6 @@ const {
 exports.execVirustotal = async (params) => {
   const { ips, api_keys, next } = params
   try {
-    let error = false
     let results = await Promise.all(
       ips.map(async (ip) => {
         for (const apiKey of api_keys) {
@@ -21,41 +20,36 @@ exports.execVirustotal = async (params) => {
             )
             return result.data
           } catch (error) {
-            console.warn(`⚠️ Error con API Key ${apiKey}, intentando con la siguiente...`)
-            console.warn('🚀 ~ ips.map ~ error:', error.message)
+            return { id: ip, error: error.response.data.error.message }
           }
         }
-        error = true
         return []
       })
     )
-    console.log('🚀 ~ exports.execVirustotal= ~ results:', results)
-    if (results.length > 0 && !error) {
+    if (results.length > 0) {
       results = results.map((result) => {
+        console.log("🚀 ~ results=results.map ~ result:", result)
         let Clasificaciones = []
-        console.log('🚀 ~ results=results.map ~ result:', result)
-        for (const value of Object.values(result.attributes.last_analysis_results)) {
-          if (value.category != 'harmless' && value.category != 'undetected')
-            Clasificaciones.push(value.result)
+        if(result.attributes?.last_analysis_results){
+          for (const value of Object.values(result.attributes.last_analysis_results)) {
+            if (value.category != 'harmless' && value.category != 'undetected')
+              Clasificaciones.push(value.result)
+          }
+          if (!Clasificaciones.length) Clasificaciones.push('harmless')
+          Clasificaciones = [...new Set(Clasificaciones)]
         }
-        if (!Clasificaciones.length) Clasificaciones.push('harmless')
         return {
           IP: result.id,
-          Link: result.links.self || '',
-          Maliciosa: result.attributes.last_analysis_stats?.malicious || 0,
-          Sospechosa: result.attributes.last_analysis_stats?.suspicious || 0,
+          Link: result?.links?.self || 'Desconocido',
+          Maliciosa: result?.attributes?.last_analysis_stats?.malicious || 0,
+          Sospechosa: result?.attributes?.last_analysis_stats?.suspicious || 0,
           'Sistema Autonomo': result.attributes?.as_owner || 'Desconocido',
           'Atributos de red': result.attributes?.network || 'Desconocido',
-          País: result.attributes.country || 'Desconocido',
-          Clasificaciones: Clasificaciones.join(','),
+          País: result?.attributes?.country || 'Desconocido',
+          Clasificaciones: Clasificaciones.length > 0 ? Clasificaciones.join(',') : 'Ninguna',
+          error: result.error || undefined,
         }
       })
-    } else {
-      results.push({
-        Advertencia:
-          'Hay apiKeys invalidas o se agotaron las consultas máximas para tus apiKeys de VirusTotal',
-      })
-      results = results.flat()
     }
 
     return results
